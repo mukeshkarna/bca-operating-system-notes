@@ -1,11 +1,7 @@
 # Unit 4: Deadlocks
 **Course:** CACS251 — Operating System | **Duration:** 4 Hours
-**Year/Semester:** BCA II/IV | Pokhara University
 
----
-
-## Syllabus Topics
-System Model, System Resources: Preemptable and Non-Preemptable; Conditions for Resource Deadlocks, Deadlock Modeling, The OSTRICH Algorithm, Method of Handling Deadlocks, Deadlock Prevention, Deadlock Avoidance: Banker's Algorithm, Deadlock Detection: Resource Allocation Graph, Recovery from Deadlock.
+**Year/Semester:** BCA II/IV | Tribhuvan University
 
 ---
 
@@ -394,7 +390,466 @@ Very common exam questions for Unit 4:
 
 ---
 
-## 14. References
+## 14. Laboratory Works
+
+Laboratory work for Unit 4 involves implementing deadlock-related algorithms in C to reinforce theoretical understanding. The following programs are expected:
+
+---
+
+### Lab 1: Banker's Algorithm — Safety Check
+
+**Objective:** Given Allocation, Max, and Available matrices, determine whether the system is in a safe state and find the safe sequence.
+
+```c
+#include <stdio.h>
+
+#define MAX_P 10
+#define MAX_R 10
+
+int n, m;  // n = number of processes, m = number of resource types
+
+int allocation[MAX_P][MAX_R];
+int max_demand[MAX_P][MAX_R];
+int available[MAX_R];
+int need[MAX_P][MAX_R];
+int finish[MAX_P];
+int safe_seq[MAX_P];
+
+// Calculate Need matrix: Need = Max - Allocation
+void calculateNeed() {
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            need[i][j] = max_demand[i][j] - allocation[i][j];
+}
+
+// Safety Algorithm — checks if system is in safe state
+int isSafe() {
+    int work[MAX_R];
+    int seq_index = 0;
+
+    // Initialize Work = Available
+    for (int j = 0; j < m; j++)
+        work[j] = available[j];
+
+    // Initialize all processes as not finished
+    for (int i = 0; i < n; i++)
+        finish[i] = 0;
+
+    int count = 0;
+    while (count < n) {
+        int found = 0;
+
+        for (int i = 0; i < n; i++) {
+            if (!finish[i]) {
+                // Check if Need[i] <= Work
+                int possible = 1;
+                for (int j = 0; j < m; j++) {
+                    if (need[i][j] > work[j]) {
+                        possible = 0;
+                        break;
+                    }
+                }
+
+                if (possible) {
+                    // Process i can complete — simulate resource release
+                    for (int j = 0; j < m; j++)
+                        work[j] += allocation[i][j];
+
+                    finish[i] = 1;
+                    safe_seq[seq_index++] = i;
+                    count++;
+                    found = 1;
+                    printf("P%d selected: Need<=Work. Work updated.\n", i);
+                }
+            }
+        }
+
+        // No process could proceed — unsafe state
+        if (!found) {
+            printf("System is in UNSAFE STATE — Deadlock possible!\n");
+            return 0;
+        }
+    }
+
+    return 1;  // All processes finished — safe state
+}
+
+int main() {
+    printf("Enter number of processes: ");
+    scanf("%d", &n);
+    printf("Enter number of resource types: ");
+    scanf("%d", &m);
+
+    printf("\nEnter Allocation Matrix (%d x %d):\n", n, m);
+    for (int i = 0; i < n; i++) {
+        printf("P%d: ", i);
+        for (int j = 0; j < m; j++)
+            scanf("%d", &allocation[i][j]);
+    }
+
+    printf("\nEnter Max Demand Matrix (%d x %d):\n", n, m);
+    for (int i = 0; i < n; i++) {
+        printf("P%d: ", i);
+        for (int j = 0; j < m; j++)
+            scanf("%d", &max_demand[i][j]);
+    }
+
+    printf("\nEnter Available Resources (%d values): ", m);
+    for (int j = 0; j < m; j++)
+        scanf("%d", &available[j]);
+
+    calculateNeed();
+
+    // Display Need matrix
+    printf("\nNeed Matrix (Max - Allocation):\n");
+    for (int i = 0; i < n; i++) {
+        printf("P%d: ", i);
+        for (int j = 0; j < m; j++)
+            printf("%d ", need[i][j]);
+        printf("\n");
+    }
+
+    printf("\nRunning Safety Algorithm...\n");
+
+    if (isSafe()) {
+        printf("\nSystem is in SAFE STATE.\n");
+        printf("Safe Sequence: ");
+        for (int i = 0; i < n; i++)
+            printf("P%d%s", safe_seq[i], i < n-1 ? " -> " : "\n");
+    }
+
+    return 0;
+}
+```
+
+**Code Explanation:**
+```
+n, m              → Number of processes and resource types
+allocation[][]    → Resources currently held by each process
+max_demand[][]    → Maximum resources each process may ever need
+available[]       → Currently free (unallocated) resources
+need[][]          → Remaining need = Max - Allocation
+work[]            → Tracks available resources as processes finish (simulation)
+finish[]          → Marks which processes have completed in the simulation
+safe_seq[]        → Stores the safe execution order found
+
+calculateNeed()   → Fills the Need matrix before running safety check
+isSafe()          → Core algorithm: finds a process whose Need <= Work,
+                    simulates its completion, adds its allocation back to Work,
+                    repeats until all done (safe) or stuck (unsafe)
+found = 0         → If no eligible process found in a full pass → unsafe state
+```
+
+**Sample Run:**
+```
+Input:
+  n=3, m=3
+  Allocation: P0=[0,1,0], P1=[2,0,0], P2=[3,0,2]
+  Max:        P0=[7,5,3], P1=[3,2,2], P2=[9,0,2]
+  Available:  [3,3,2]
+
+Need Matrix:
+  P0: 7 4 3
+  P1: 1 2 2
+  P2: 6 0 0
+
+Output:
+  P1 selected: Need<=Work. Work=[5,3,2]
+  P0 selected: Need<=Work. Work=[5,4,2]
+  P2 selected: Need<=Work. Work=[8,4,4]
+  System is in SAFE STATE.
+  Safe Sequence: P1 -> P0 -> P2
+```
+
+---
+
+### Lab 2: Banker's Algorithm — Resource Request
+
+**Objective:** When a process makes a new resource request, check if granting it keeps the system safe.
+
+```c
+#include <stdio.h>
+
+#define MAX_P 10
+#define MAX_R 10
+
+int n, m;
+int allocation[MAX_P][MAX_R];
+int max_demand[MAX_P][MAX_R];
+int available[MAX_R];
+int need[MAX_P][MAX_R];
+
+void calculateNeed() {
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            need[i][j] = max_demand[i][j] - allocation[i][j];
+}
+
+int isSafe() {
+    int work[MAX_R];
+    int finish[MAX_P];
+    for (int j = 0; j < m; j++) work[j] = available[j];
+    for (int i = 0; i < n; i++) finish[i] = 0;
+
+    int count = 0;
+    while (count < n) {
+        int found = 0;
+        for (int i = 0; i < n; i++) {
+            if (!finish[i]) {
+                int ok = 1;
+                for (int j = 0; j < m; j++)
+                    if (need[i][j] > work[j]) { ok = 0; break; }
+                if (ok) {
+                    for (int j = 0; j < m; j++)
+                        work[j] += allocation[i][j];
+                    finish[i] = 1;
+                    count++;
+                    found = 1;
+                }
+            }
+        }
+        if (!found) return 0;
+    }
+    return 1;
+}
+
+// Process pid requests resources in request[]
+void resourceRequest(int pid, int request[]) {
+    printf("\nP%d requests: ", pid);
+    for (int j = 0; j < m; j++) printf("%d ", request[j]);
+    printf("\n");
+
+    // Step 1: Request must not exceed Need
+    for (int j = 0; j < m; j++) {
+        if (request[j] > need[pid][j]) {
+            printf("ERROR: Request exceeds maximum claim. Denied.\n");
+            return;
+        }
+    }
+
+    // Step 2: Request must not exceed Available
+    for (int j = 0; j < m; j++) {
+        if (request[j] > available[j]) {
+            printf("Resources not available. P%d must WAIT.\n", pid);
+            return;
+        }
+    }
+
+    // Step 3: Pretend to allocate (trial allocation)
+    for (int j = 0; j < m; j++) {
+        available[j]       -= request[j];
+        allocation[pid][j] += request[j];
+        need[pid][j]       -= request[j];
+    }
+
+    // Step 4: Run safety check on new state
+    if (isSafe()) {
+        printf("Request GRANTED. System remains in safe state.\n");
+    } else {
+        // Step 5: Rollback — unsafe, deny request
+        printf("Request DENIED — would lead to unsafe state. Rolling back.\n");
+        for (int j = 0; j < m; j++) {
+            available[j]       += request[j];
+            allocation[pid][j] -= request[j];
+            need[pid][j]       += request[j];
+        }
+    }
+}
+
+int main() {
+    printf("Enter number of processes and resource types: ");
+    scanf("%d %d", &n, &m);
+
+    printf("Enter Allocation Matrix:\n");
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            scanf("%d", &allocation[i][j]);
+
+    printf("Enter Max Matrix:\n");
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            scanf("%d", &max_demand[i][j]);
+
+    printf("Enter Available Resources: ");
+    for (int j = 0; j < m; j++)
+        scanf("%d", &available[j]);
+
+    calculateNeed();
+
+    int pid, request[MAX_R];
+    printf("\nEnter requesting process ID: ");
+    scanf("%d", &pid);
+    printf("Enter request vector (%d values): ", m);
+    for (int j = 0; j < m; j++)
+        scanf("%d", &request[j]);
+
+    resourceRequest(pid, request);
+    return 0;
+}
+```
+
+**Code Explanation:**
+```
+resourceRequest()     → Handles the full request protocol for Banker's Algorithm
+request[j] > need     → Step 1: Process asking for more than its declared maximum → Error
+request[j] > available→ Step 2: Resources physically not available → Wait
+Trial allocation      → Step 3: Temporarily grant the request and update matrices
+isSafe()              → Step 4: Check if system is still safe after trial allocation
+Rollback              → Step 5: If unsafe, undo the trial allocation and deny
+```
+
+---
+
+### Lab 3: Deadlock Detection Using Resource Allocation Graph
+
+**Objective:** Detect deadlock in a system with single-instance resources using cycle detection in RAG.
+
+```c
+#include <stdio.h>
+#include <string.h>
+
+#define MAX_N 20  // Max processes + resources
+
+int graph[MAX_N][MAX_N];  // Adjacency matrix for RAG
+int visited[MAX_N];
+int recStack[MAX_N];       // Recursion stack for cycle detection
+int n_nodes;               // Total nodes (processes + resources)
+
+// Depth-First Search for cycle detection
+int dfs(int node) {
+    visited[node]  = 1;
+    recStack[node] = 1;
+
+    for (int next = 0; next < n_nodes; next++) {
+        if (graph[node][next]) {
+            if (!visited[next]) {
+                if (dfs(next)) return 1;  // Cycle found deeper
+            } else if (recStack[next]) {
+                return 1;  // Back edge — cycle found!
+            }
+        }
+    }
+
+    recStack[node] = 0;  // Remove from recursion stack on backtrack
+    return 0;
+}
+
+int detectDeadlock() {
+    memset(visited,  0, sizeof(visited));
+    memset(recStack, 0, sizeof(recStack));
+
+    for (int i = 0; i < n_nodes; i++) {
+        if (!visited[i]) {
+            if (dfs(i)) return 1;  // Cycle found — deadlock!
+        }
+    }
+    return 0;  // No cycle — no deadlock
+}
+
+int main() {
+    int n_proc, n_res;
+    printf("Enter number of processes: ");
+    scanf("%d", &n_proc);
+    printf("Enter number of resources: ");
+    scanf("%d", &n_res);
+
+    n_nodes = n_proc + n_res;
+    // Convention: nodes 0 to n_proc-1 = processes
+    //             nodes n_proc to n_nodes-1 = resources
+
+    memset(graph, 0, sizeof(graph));
+
+    int edges;
+    printf("Enter number of edges in RAG: ");
+    scanf("%d", &edges);
+
+    printf("Enter edges (from to) — use node numbers:\n");
+    printf("  Processes: 0 to %d\n", n_proc - 1);
+    printf("  Resources: %d to %d\n", n_proc, n_nodes - 1);
+    printf("  Request edge: process -> resource\n");
+    printf("  Assignment edge: resource -> process\n");
+
+    for (int e = 0; e < edges; e++) {
+        int u, v;
+        scanf("%d %d", &u, &v);
+        graph[u][v] = 1;
+    }
+
+    if (detectDeadlock()) {
+        printf("\nCycle detected in RAG — DEADLOCK EXISTS!\n");
+    } else {
+        printf("\nNo cycle in RAG — System is DEADLOCK FREE.\n");
+    }
+
+    return 0;
+}
+```
+
+**Code Explanation:**
+```
+graph[][]      → Adjacency matrix representing RAG edges
+visited[]      → Tracks nodes already visited in DFS
+recStack[]     → Tracks nodes in current DFS path (detects back edges)
+dfs(node)      → Depth-First Search — explores all paths from a node
+back edge      → If DFS reaches a node already in recStack → cycle → deadlock
+n_nodes        → Total nodes = processes + resources (combined graph)
+```
+
+---
+
+### Lab Exercise Problems
+
+Students should solve the following in the lab session:
+
+**Problem 1:** Given the state below, apply Banker's Algorithm to find if the system is safe and identify the safe sequence.
+```
+Processes: P0, P1, P2, P3, P4
+Resources: A, B, C
+Available: A=3, B=3, C=2
+
+         Allocation    Max
+         A  B  C    A  B  C
+P0       0  1  0    7  5  3
+P1       2  0  0    3  2  2
+P2       3  0  2    9  0  2
+P3       2  1  1    2  2  2
+P4       0  0  2    4  3  3
+```
+
+**Problem 2:** P1 requests [1, 0, 2]. Can this be granted safely using Banker's Algorithm?
+
+**Problem 3:** Draw the Resource Allocation Graph for the following and determine if deadlock exists:
+```
+P1 holds R1, requests R2
+P2 holds R2, requests R1
+```
+
+---
+
+## 15. Exam Tips
+
+Very common exam questions for Unit 4:
+
+1. **What is a deadlock? Give a real-world example.**
+2. **State and explain the four Coffman conditions with examples.**
+3. **What is the Resource Allocation Graph? Draw and interpret one.**
+4. **Explain the Ostrich Algorithm. When is it used?**
+5. **Explain deadlock prevention for each Coffman condition.**
+6. **What is a safe state? Why is it important in deadlock avoidance?**
+7. **Solve Banker's Algorithm numerical — given Allocation, Max, Available; find Need, check if safe, find safe sequence.** *(Very common — must practice!)*
+8. **Differentiate deadlock prevention vs deadlock avoidance vs deadlock detection.**
+9. **How can a deadlock be recovered? Explain process termination and resource preemption.**
+10. **Write a C program to implement Banker's Algorithm safety check.**
+
+> **Key formula:** `Need[i][j] = Max[i][j] − Allocation[i][j]`
+>
+> **For safe sequence:** Find a process whose Need ≤ Work, execute it, add its Allocation to Work, repeat.
+>
+> **Golden rule for Banker's numerical:** Always compute the Need matrix first before starting the safety check.
+
+---
+
+## 16. References
 
 - Andrew S. Tanenbaum, *Modern Operating System 6/e*, PHI, 2011/12 — Chapter 6
 - Silberschatz, P.B. Galvin, G. Gagne, *Operating System Concepts 8/e*, Wiley India, 2014 — Chapter 7
