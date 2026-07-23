@@ -375,20 +375,7 @@ User calls printf()
 
 A **hard disk** consists of:
 
-```
-┌─────────────────────────────────────────────┐
-│                   Disk Platter              │
-│                                             │
-│    Track 0 ─────────────────────────────┐  │
-│    Track 1 ──────────────────────────┐  │  │
-│    Track 2 ───────────────────────┐  │  │  │
-│    ...                            │  │  │  │
-│              Sector ──────────────┤  │  │  │
-│                                   │  │  │  │
-│         Spindle (center)          │  │  │  │
-└─────────────────────────────────────────────┘
-        Read/Write Head (on arm above platter)
-```
+(Disk Structure)[https://www.cs.uic.edu/~jbell/CourseNotes/OperatingSystems/images/Chapter10/10_01_DiskMechanism.jpg]
 
 **Key components:**
 - **Platter:** Circular magnetic disk. Multiple platters stack on spindle.
