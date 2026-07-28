@@ -1,6 +1,6 @@
 # Linux Terminal Commands — Practical Guide
 **Course:** CACS251 — Operating System
-**Year/Semester:** BCA II/IV | Pokhara University
+**Year/Semester:** BCA II/IV | Tribhuvan University
 
 ---
 

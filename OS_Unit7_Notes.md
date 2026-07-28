@@ -1,6 +1,6 @@
 # Unit 7: File System Interface Management
 **Course:** CACS251 — Operating System | **Duration:** 2 Hours
-**Year/Semester:** BCA II/IV | Pokhara University
+**Year/Semester:** BCA II/IV | Tribhuvan University
 
 ---
 

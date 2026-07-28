@@ -1,6 +1,6 @@
 # Unit 3: Process Management
 **Course:** CACS251 — Operating System | **Duration:** 15 Hours
-**Year/Semester:** BCA II/IV | Pokhara University
+**Year/Semester:** BCA II/IV | Tribhuvan University
 
 ---
 

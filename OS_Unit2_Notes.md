@@ -1,6 +1,6 @@
 # Unit 2: Operating System Structure
 **Course:** CACS251 — Operating System | **Duration:** 2 Hours
-**Year/Semester:** BCA II/IV | Pokhara University
+**Year/Semester:** BCA II/IV | Tribhuvan University
 
 ---
 

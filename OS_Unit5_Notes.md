@@ -1,6 +1,6 @@
 # Unit 5: Memory Management
 **Course:** CACS251 — Operating System | **Duration:** 7 Hours
-**Year/Semester:** BCA II/IV | Pokhara University
+**Year/Semester:** BCA II/IV | Tribhuvan University
 
 ---
 

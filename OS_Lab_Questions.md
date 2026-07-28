@@ -1,6 +1,6 @@
 # CACS251 — Operating System
 # Laboratory Questions (Unit 1 – Unit 7)
-**Year/Semester:** BCA II/IV | Pokhara University
+**Year/Semester:** BCA II/IV | Tribhuvan University
 **Language:** C Programming
 
 ---
