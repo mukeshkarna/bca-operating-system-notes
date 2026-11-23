@@ -506,11 +506,42 @@ while (true) {
 **Serializability** means a concurrent execution is correct if it's equivalent to some **serial (sequential) execution**. Even if processes interleave, the final result must be the same as if they ran one after another.
 
 ### 18.2 Mutual Exclusion Conditions
-For a valid mutual exclusion solution, it must guarantee:
-- No two processes are simultaneously in their CS.
-- No assumptions about CPU speeds or number of CPUs.
-- No process running outside CS may block others.
-- No process waits forever to enter CS.
+Any method we design for mutual exclusion is a **good solution only if it follows these 4 rules.** We will use these rules to judge every method in 18.3.
+
+> **One example for all 4 rules:** An office has **one washroom** shared by all employees. The washroom is the **critical section** and the employees are the **processes**. We need a system (lock, key, sign...) to manage it.
+
+**Rule 1: Only one process inside the CS at a time**
+- If one process is inside its critical section, no other process can enter.
+- *Office:* Only one person in the washroom at a time. Two people inside together means the system has failed.
+- This is the **main goal** of mutual exclusion.
+
+**Rule 2: Don't depend on CPU speed or number of CPUs**
+- The solution must work on a slow CPU or a fast CPU, with 1 core or 8 cores.
+- We must not assume "process A is faster, so it will always finish first."
+- *Office:* The system must work whether employees walk fast or slow, and whether the office has 10 or 100 employees. A rule like "Ram is always quicker, so he will never clash with Shyam" is not a real solution.
+- *Example of breaking this rule:* Disabling interrupts works only on **1 CPU**. On multi-core, it fails.
+
+**Rule 3: A process outside the CS must not block others**
+- If the CS is **empty**, a process that wants to enter should be allowed in **immediately**.
+- A process that is busy with other work (not in the CS, not interested) must not stop anyone.
+- *Office:* The washroom is empty. You want to go. But the rule says "Shyam goes next", and Shyam is sitting at his desk working and doesn't need the washroom. You have to wait for nothing. That is wrong.
+- *Example of breaking this rule:* **Strict alternation** (turn variable) does exactly this.
+
+**Rule 4: No process waits forever**
+- Every process that wants to enter the CS must **get its chance after a limited wait**.
+- No process should be skipped again and again (**starvation**).
+- *Office:* You are waiting outside the washroom, but others keep cutting in front of you every time it becomes free. You never get in. That is unfair.
+
+**Quick summary:**
+
+| Rule | In one line | Office example |
+|------|-------------|----------------|
+| 1. Mutual exclusion | Only one inside | One person in the washroom |
+| 2. No speed assumptions | Works on any CPU | Works whether people are fast or slow |
+| 3. Progress | Empty CS → let a waiting process in | Empty washroom → don't make people wait for nothing |
+| 4. Bounded waiting | Everyone gets a turn | Nobody waits outside forever |
+
+> Rules 1, 3 and 4 are the same three requirements from section 17 (Mutual Exclusion, Progress, Bounded Waiting). Rule 2 adds: "and it must work on any hardware."
 
 ### 18.3 Proposals for Achieving Mutual Exclusion
 
@@ -553,7 +584,7 @@ void Process(void)
 
 Before entering, a process checks the lock. If it is 0, the process sets it to 1 and goes in. When leaving, it sets it back to 0.
 
-> **Real-world example:** The "VACANT / OCCUPIED" sign on a toilet door. Check the sign. If it says vacant, turn it to occupied and go in. Turn it back to vacant when you leave.
+> **Real-world example:** The "VACANT / OCCUPIED" sign on a washroom door. Check the sign. If it says vacant, turn it to occupied and go in. Turn it back to vacant when you leave.
 
 ```c
 int lock = 0;          // 0 = free, 1 = busy
@@ -584,7 +615,7 @@ void Process(void)
 
 Both processes are in the critical section, so mutual exclusion is broken.
 
-> **Real-world example:** Two people look at the toilet sign at the same moment. Both see "VACANT" and both walk in.
+> **Real-world example:** Two people look at the washroom sign at the same moment. Both see "VACANT" and both walk in.
 
 ---
 
@@ -701,7 +732,7 @@ Only one process is inside at a time (**mutual exclusion**). P1 enters right aft
 
 **Idea:** The lock variable (B) failed because "check the lock" and "set the lock" were two separate steps, and a process switch could happen between them. **TSL is a hardware instruction that does both in ONE step that cannot be interrupted.** While TSL runs, the CPU also locks the memory bus, so other CPUs cannot touch the lock either.
 
-> **Real-world example:** A shop has a single toilet key hanging on a hook. Taking the key off the hook is one action: you check whether it's free and claim it at the same moment. Two people can't both take the same key. If the hook is empty, you wait. When you finish, you hang the key back.
+> **Real-world example:** A shop has a single washroom key hanging on a hook. Taking the key off the hook is one action: you check whether it's free and claim it at the same moment. Two people can't both take the same key. If the hook is empty, you wait. When you finish, you hang the key back.
 
 **What TSL does (in C, for understanding; the hardware does this ATOMICALLY):**
 
