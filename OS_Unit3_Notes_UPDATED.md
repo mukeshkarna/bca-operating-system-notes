@@ -514,51 +514,6 @@ For a valid mutual exclusion solution, it must guarantee:
 
 ### 18.3 Proposals for Achieving Mutual Exclusion
 
-#### First, why is `count = count + 1` dangerous?
-
-In C, `count = count + 1` looks like **one** step. The CPU actually does it in **three** steps:
-
-```c
-int count = 0;
-
-void Producer(void)
-{
-    int itemp;
-    while (true)
-    {
-        produce_item(itemp);
-        while (count == n);        // buffer full → wait
-        Buffer[in] = itemp;
-        in = (in + 1) mod n;
-        count = count + 1;         // ← looks like ONE line...
-    }
-}
-```
-
-```assembly
-; ...but the CPU runs THREE instructions for count = count + 1
-LOAD  Rp, m[count]     ; 1. copy count from memory into register Rp
-INCR  Rp               ; 2. add 1 to the register
-STORE m[count], Rp     ; 3. write the register back to memory
-```
-
-The consumer does the same thing with `count = count - 1` (LOAD Rc, DECR Rc, STORE).
-
-**What goes wrong (count = 5 at the start):**
-
-| Step | Producer | Consumer | Rp | Rc | count in memory |
-|------|----------|----------|----|----|-----------------|
-| 1 | LOAD Rp, m[count] | | 5 | | 5 |
-| 2 | INCR Rp | | 6 | | 5 |
-| 3 | *(timer interrupt → switch)* | LOAD Rc, m[count] | 6 | 5 | 5 |
-| 4 | | DECR Rc | 6 | 4 | 5 |
-| 5 | | STORE m[count], Rc | 6 | 4 | **4** |
-| 6 | STORE m[count], Rp | | 6 | 4 | **6** ❌ |
-
-One item was added and one was removed, so count should still be **5**. It ended up as **6**. With a different interleaving it ends up as **4**.
-
-> **Real-world example:** Two cashiers update the same stock register. Both read "5 pens", one sells a pen and writes "4", the other receives a pen and writes "6". Whoever writes last wins, and the register is wrong.
-
 Every method below tries to solve one problem: **stop a second process from entering the critical section while the first is still inside.**
 
 ---
@@ -575,7 +530,7 @@ void Process(void)
     while (true)
     {
         disable_interrupts();   // CLI → no timer interrupt, no process switch
-        count = count + 1;      // critical section (now safe on 1 CPU)
+        // critical section (safe on 1 CPU)
         enable_interrupts();    // STI → switching allowed again
         // remainder section
     }
@@ -616,15 +571,7 @@ void Process(void)
 }
 ```
 
-**Problem: a race condition on the lock itself.** Checking the lock and setting it are **two separate steps**, just like LOAD and STORE above:
-
-```assembly
-LOAD  R, m[lock]      ; read lock
-CMP   R, #0           ; is it 0?
-JNE   wait            ; no → wait
-                      ; ← process switch can happen HERE
-STORE m[lock], #1     ; set lock = 1
-```
+**Problem: a race condition on the lock itself.** Checking the lock (`while (lock == 1)`) and setting it (`lock = 1`) are **two separate steps**. A process switch can happen in between:
 
 | Step | P1 | P2 | lock |
 |------|----|----|------|
@@ -923,7 +870,7 @@ void Process(void)
     while (true)
     {
         Down(mutex);          // take the key (1 → 0); if 0 → sleep
-        count = count + 1;    // critical section (now safe!)
+        // critical section
         Up(mutex);            // return the key; wake a waiter if any
         // remainder section
     }
@@ -938,8 +885,6 @@ void Process(void)
 | 4 | | enters CS | 0 |
 | 5 | | Up → 1 | 1 |
 
-Compare this with the earlier `count = count + 1` race: P2 can't do LOAD/INCR/STORE until P1 has finished all three steps.
-
 **2. Counting Semaphore:** the value can be **any non-negative number** (when initialized). It is used when there are **N identical resources**.
 
 > **Real-world example:** A cyber café has 10 computers, so S = 10. The 11th customer waits until someone leaves.
@@ -953,18 +898,6 @@ void Customer(void)
     use_computer();
     Up(computers);       // free the computer
 }
-```
-
-**3. Semaphore for ordering (bonus):** A semaphore set to **0** can force "P1 must happen before P2".
-
-> **Real-world example:** You must boil water (P1) before you pour the tea (P2).
-
-```c
-Semaphore done = 0;
-
-// P1                       // P2
-boil_water();               Down(done);   // sleeps until P1 signals
-Up(done);                   pour_tea();
 ```
 
 **Common mistakes with semaphores** (the reason monitors were invented):
@@ -1047,14 +980,7 @@ void Consumer(void) { while (true) { item = BoundedBuffer.remove(); consume_item
 
 Here `count++` is safe without any `Down()`/`Up()`, because the monitor allows only one process inside at a time.
 
-> **Real-world example (Java):** Java's `synchronized` keyword turns an object into a monitor. `wait()` and `notify()` act as the condition variable operations.
-> ```java
-> public synchronized void insert(int item) throws InterruptedException {
->     while (count == N) wait();     // sleep until not full
->     buffer[in] = item; in = (in + 1) % N; count++;
->     notify();                      // wake a waiting thread
-> }
-> ```
+> **Real-world example:** Java's `synchronized` keyword works like a monitor.
 
 ---
 
@@ -1080,43 +1006,6 @@ receive(source, &message);      // wait for a message from a process
 | **Blocking (synchronous)** | Sender waits until the message is received | Phone call: both must be present |
 | **Non-blocking (asynchronous)** | Sender sends and continues working | SMS: send and move on |
 
-**Example: Producer-Consumer with message passing (no shared buffer):**
-
-```c
-#define N 100                          // number of message slots
-
-void Producer(void)
-{
-    int item;
-    message m;
-    while (true)
-    {
-        item = produce_item();
-        receive(consumer, &m);         // wait for an EMPTY message (a free slot)
-        build_message(&m, item);       // put item into the message
-        send(consumer, &m);            // send the FULL message to consumer
-    }
-}
-
-void Consumer(void)
-{
-    int item, i;
-    message m;
-    for (i = 0; i < N; i++)
-        send(producer, &m);            // at start, give producer N empty messages
-
-    while (true)
-    {
-        receive(producer, &m);         // wait for a FULL message
-        item = extract_item(&m);       // take the item out
-        send(producer, &m);            // send the EMPTY message back
-        consume_item(item);
-    }
-}
-```
-
-> Think of it as **N empty boxes** passed back and forth. The consumer sends empty boxes to the producer. The producer fills a box and sends it back. If the producer has no empty box, it waits. If the consumer has no full box, it waits.
-
 ✅ No shared memory → no race conditions.
 ✅ Works across different computers (**distributed systems**).
 ✅ Used in microkernel OSes (**QNX, MINIX**).
@@ -1138,7 +1027,7 @@ void Consumer(void)
 > - Shelf empty → the customer waits.
 > - Only one person at the shelf at a time, so they don't bump into each other.
 
-**Without synchronization (wrong):** the code from the start of section 18.3, with a shared `count`:
+**Without synchronization (wrong):** producer and consumer share a variable `count`:
 
 ```c
 int count = 0;
@@ -1156,7 +1045,7 @@ void Producer(void)
     }                                      
 } 
 
-void Consumer(void)}
+void Consumer(void)
 {
     int itemc;
     while (true)
@@ -1170,7 +1059,32 @@ void Consumer(void)}
 }
 ```
 
-`count = count + 1` and `count = count - 1` can interleave (LOAD / INCR / STORE), and `count` ends up wrong, as shown in the table at the start of 18.3. Both loops also busy wait.
+**Why is this wrong?** `count = count + 1` looks like **one** line, but the CPU runs it as **three** instructions:
+
+```assembly
+LOAD  Rp, m[count]     ; 1. copy count from memory into register Rp
+INCR  Rp               ; 2. add 1 to the register
+STORE m[count], Rp     ; 3. write the register back to memory
+```
+
+The consumer does the same thing with `count = count - 1` (LOAD Rc, DECR Rc, STORE).
+
+**What goes wrong (count = 5 at the start):**
+
+| Step | Producer | Consumer | Rp | Rc | count in memory |
+|------|----------|----------|----|----|-----------------|
+| 1 | LOAD Rp, m[count] | | 5 | | 5 |
+| 2 | INCR Rp | | 6 | | 5 |
+| 3 | *(timer interrupt → switch)* | LOAD Rc, m[count] | 6 | 5 | 5 |
+| 4 | | DECR Rc | 6 | 4 | 5 |
+| 5 | | STORE m[count], Rc | 6 | 4 | **4** |
+| 6 | STORE m[count], Rp | | 6 | 4 | **6** ❌ |
+
+One item was added and one was removed, so count should still be **5**. It ended up as **6**. With a different interleaving it ends up as **4**.
+
+> **Real-world example:** Two cashiers update the same stock register. Both read "5 pens", one sells a pen and writes "4", the other receives a pen and writes "6". Whoever writes last wins, and the register is wrong.
+
+Both loops also busy wait (`while (count == n);`), wasting CPU time.
 
 **Correct solution with 3 semaphores:**
 
