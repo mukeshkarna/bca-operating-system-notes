@@ -501,9 +501,29 @@ while (true) {
 ## 18. Avoiding the Critical Region
 
 ### 18.1 Mutual Exclusion and Serializability
-**Mutual Exclusion** ensures only one process executes in the critical section at a time.
+**Mutual Exclusion**
+- **Mutual** = between each other, **Exclusion** = keeping out.
+- When one process is inside the critical section, **all other processes are kept out** until it leaves.
+- *Real-world example:* A single-person lift. When someone is inside, the door stays closed for everyone else. The next person can get in only after the first one gets out.
 
-**Serializability** means a concurrent execution is correct if it's equivalent to some **serial (sequential) execution**. Even if processes interleave, the final result must be the same as if they ran one after another.
+**Serializability**
+
+First, two words:
+- **Serial execution:** processes run **one after another**. P1 finishes completely, then P2 starts. This is always correct, but slow.
+- **Concurrent execution:** processes run **at the same time**, and their steps get mixed (P1 does a little, then P2 does a little, then P1 again...). This is faster.
+
+**Serializability** says: a concurrent execution is **correct** only if its final result is the **same as if the processes had run one after another** (in some order).
+
+> **Real-world example:** Your bank balance is **Rs. 1000**. You deposit **Rs. 500** while your father withdraws **Rs. 200** at the same time from another ATM.
+> - One after another (deposit first, or withdrawal first), the answer is always **1000 + 500 − 200 = Rs. 1300**.
+> - If both run at the same time and the final balance is **Rs. 1300** → ✅ **serializable** (correct).
+> - If the final balance is **Rs. 1500** or **Rs. 800** (one update got lost) → ❌ **not serializable** (wrong).
+>
+> It doesn't matter *how* the steps were mixed. What matters is that the **final answer matches a one-after-another run**.
+
+**How the two are connected:** Mutual exclusion is the **tool**, and serializability is the **goal**. Because only one process is in the critical section at a time, the shared data gets updated one after another, so the result matches a serial run.
+
+*(Section 20 covers serializability in more detail.)*
 
 ### 18.2 Mutual Exclusion Conditions
 Any method we design for mutual exclusion is a **good solution only if it follows these 4 rules.** We will use these rules to judge every method in 18.3.
